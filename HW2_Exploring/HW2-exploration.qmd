@@ -1,0 +1,96 @@
+---
+title: "Hmwk 4 Practice"
+format: html
+editor: visual
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+library(ggplot2)
+library(tidyverse)
+library(ggtext)
+library(scales)
+```
+
+```{r}
+emissions <- read.csv("data/meds_high_resolution_2024_ais_emissions_spatial_data_v20241121.csv")
+```
+
+```{r}
+emission_filter <- emissions %>% 
+  filter(flag == "USA")
+
+emission_country <- emissions %>%
+  group_by(flag, vessel_class) %>% 
+  mutate(emissions_co2_mt_country = sum(emissions_co2_mt)) %>%
+  filter(flag == "USA")
+
+emission_total <- emissions %>% 
+  group_by(flag) %>% 
+  summarise(total_co2_mt = sum(emissions_co2_mt))
+
+emission_total$total_co2_mt <- format(round(as.numeric(emission_total$total_co2_mt, scientific = FALSE), 2))
+
+top_20 <- emission_total %>%
+  arrange(desc(emission_total$total_co2_mt)) %>% 
+  slice(1:20)
+  
+  
+```
+
+```{r}
+ 
+# Reorder the data
+top_20 <- top_20 %>%
+  mutate(total_co2_mt=as.numeric(total_co2_mt))
+  
+# Reorder the factor levels of `flag` based on `total_co2_mt`
+top_20$flag <- factor(top_20$flag, levels = top_20$flag[order(top_20$total_co2_mt)])
+# Ensure total_co2_mt is numeric
+top_20$total_co2_mt <- as.numeric(as.character(top_20$total_co2_mt))
+
+
+# Create the plot
+p <- ggplot(top_20, aes(x=flag, y=total_co2_mt)) +
+  geom_segment(
+    aes(x=flag, xend=flag, y=0, yend=total_co2_mt), 
+    color=ifelse(top_20$flag %in% c("USA","CAN"), "orange", "grey"), 
+    size=ifelse(top_20$flag %in% c("USA","CAN"), 1.3, 0.7)
+  ) +
+  geom_point(
+    color=ifelse(top_20$flag %in% c("USA","CAN"), "orange", "grey"), 
+    size=ifelse(top_20$flag %in% c("USA","CAN"), 5, 2)
+  ) +
+  theme_ipsum() +
+  coord_flip() +
+  theme(
+    legend.position="none",
+    plot.title = element_text(hjust=0.5, vjust=1, size = 14),
+    plot.subtitle = element_text(size = 10, hjust = .5),
+    plot.background = element_rect(fill="grey90", color=NA),
+    plot.title.position = "panel"
+  ) +
+  xlab("") +
+  ylab("Total CO2 Emissions (millions)") +
+  ggtitle("Top 20 Countries by Total CO2 Emissions of Known Fishing Vessels") +
+  labs(subtitle="A comparison of North America CO2 emissions among the top 20 countries") +
+  scale_y_continuous(labels = scales::unit_format(unit = "M", scale = 1e-6))
+
+# Add annotations
+p <- p + annotate("text", x="USA", y=top_20$total_co2_mt[which(top_20$flag=="USA")]*1.1, 
+                  label="~ 1.1 million metric tons", 
+                  color="orange", size=4, angle=0, fontface="bold", hjust=0) + 
+         annotate("text", x="CAN", y=top_20$total_co2_mt[which(top_20$flag=="CAN")]*1.1, 
+                  label="~ 0.5 million metric tons", 
+                  color="orange", size=4, angle=0, fontface="bold", hjust=0)
+
+
+print(p)
+
+```
+
+```{r}
+# Create a map plot
+
+```
